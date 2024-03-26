@@ -1,0 +1,86 @@
+<script src="https://cdn.tailwindcss.com"></script>
+
+<h5>{{chatrooms.name}}</h5>
+
+<div class="message-container m-10 overflow-auto h-[700px]" id ="message-container">
+<div  id ="chat-messages" class =" max-w-[100%] ">
+    
+    {% for message in chatmessages %}
+    {% if message.user.username == request.user.username %}
+    <div class="my-10 shadow-xl  bg-slate-500 rounded  px-2 py-3 ml-[60%] mr-1  "  >
+       <div class="text-neutral-800 text-[12px]"> {{message.user.username}}</div>
+       <div class =""> {{message.message_content}}<br></div>
+       <div class ="text-[10px] text-slate-100"> {{message.date}}<br></div>
+    </div>
+    {% else %}
+    <div class="my-10 shadow-xl  bg-slate-300 rounded  px-2 py-3 mx-1 max-w-md">
+       <div class="text-neutral-800 text-[12px]"> {{message.user.username}}</div>
+        {{message.message_content}}<br>
+       <div class ="text-[10px] text-slate-100"> {{message.date}}<br></div>
+    </div>
+    {% endif %}
+    {% endfor %}
+        
+</div>
+</div>
+<div class ="fixed inset-x-0 bottom-0 h-[60px] bg-slate-300 pt-4 ">
+<form method="post">
+    {% csrf_token %}
+    <input id="message_input" type="text" name ="message" placeholder="enter message" class="w-[90%] border-solid border-2 border-slate-500 h-8 mx-2 rounded pl-2">
+    <button type="submit" id="send-button" class="bg-zinc-400 px-3 py-1 rounded  ">Submit</button>
+
+
+
+</form>
+</div>
+{{chatrooms.slug|json_script:"json-chatroom"}}
+
+{{request.user.username|json_script:"json-username"}}
+<script>
+    const chatroom =JSON.parse(document.getElementById('json-chatroom').textContent)
+    const username =JSON.parse(document.getElementById('json-username').textContent)
+    const chatsocket=new WebSocket(
+        'ws://'
+        +window.location.host
+        +'/ws/'
+        +chatroom
+        +'/'
+    )
+    chatsocket.onmessage =function (e){
+        const data=JSON.parse(e.data)
+        if (data.message){
+            console.log("recived message to client",data.message)
+            let html= '<div class="my-10 shadow-xl  bg-slate-500 rounded  px-2 py-3 ml-[60%] mr-1">'+' <div class="text-neutral-800 text-[12px]">'+data.username + ":" +'</div>'+data.message+ "<br>"
+            document.getElementById("chat-messages").innerHTML+=html
+        }else {
+            alert("the message is empty")
+        }
+        scroll()
+    }
+    chatsocket.onclose = function(e){
+        console.log("socket closed")
+    }
+
+    document.getElementById('send-button').onclick=function(e){
+        e.preventDefault()
+        const messageinput = document.getElementById('message_input')
+        const message=messageinput.value
+        console.log(message)
+        
+
+
+
+        chatsocket.send(JSON.stringify({
+            'message':message,
+            'username':username,    
+            'room':chatroom
+
+        }))
+        messageinput.value=""
+    }
+    function scroll(){
+        const container =document.getElementById("message-container")
+        container.scrollTop=container.scrollHeight
+    }
+    scroll()
+</script>
